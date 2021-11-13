@@ -1,7 +1,9 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
+const ObjectId = require("mongodb").ObjectId;
 require("dotenv").config();
+
 const app = express();
 const port = 5000;
 
@@ -21,7 +23,19 @@ async function run() {
     await client.connect();
     const database = client.db("SecurityCamera");
     const usersCollection = database.collection("users");
-
+    const productsCollection = database.collection("products");
+    //find all products
+    app.get("/products", async (req, res) => {
+      const result = await productsCollection.find({}).toArray();
+      res.json(result);
+    });
+    // find single product
+    app.get("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await productsCollection.findOne(query);
+      res.json(result);
+    });
     // save user to db
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -43,6 +57,26 @@ async function run() {
       );
       res.json(result);
       console.log(result);
+    });
+    // save or update uer role as admin
+    app.put("/users/admin", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.adminEmail };
+      const updateDoc = { $set: { role: "admin" } };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.json(result);
+      console.log(result);
+    });
+    // find user if admin
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let isAdmin = false;
+      if (user?.role === "admin") {
+        isAdmin = true;
+      }
+      res.json({ admin: isAdmin });
     });
   } finally {
     // await client.close()
